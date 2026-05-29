@@ -2,6 +2,8 @@
 
 CLI + Web 双模式 AI Agent，TypeScript (ESM)，零编译。
 
+> 最小的能安全办公的 claw。
+
 ## 核心主打
 
 **轻量** — 零编译、单依赖（仅 `openai`），16 个源文件，Node.js 直跑。没有 webpack / vite / tsc，clone 下来 `npm install && npm start` 就能用。
