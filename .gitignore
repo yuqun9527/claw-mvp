@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Workspace (user files, downloaded papers, etc.)
+workspace/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config with API keys
+config.json
+.env
+
+# Test artifacts
+test_*.js
+*.tmp
+*.pptx

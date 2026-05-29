@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>claw-mvp - AI Chat</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --bg2: #16213e;
+    --bg3: #0f3460;
+    --text: #e0e0e0;
+    --text2: #a0a0b0;
+    --accent: #4fc3f7;
+    --accent2: #e040fb;
+    --user-bg: #1e3a5f;
+    --assistant-bg: #1a2435;
+    --error: #ef5350;
+    --border: #2a2a4a;
+    --input-bg: #12122a;
+    --step-bg: #151d28;
+    --step-border: #232838;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    padding: 8px 16px; display: flex; align-items: center; gap: 16px;
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+  .header select {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    outline: none; max-width: 200px;
+  }
+  .header select:focus { border-color: var(--accent); }
+  .header label { font-size: 11px; color: var(--text2); white-space: nowrap; }
+  .header-group { display: flex; align-items: center; gap: 4px; }
+  .header-spacer { flex: 1; }
+  .header-actions { display: flex; gap: 6px; }
+  .header-actions button {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; white-space: nowrap;
+  }
+  .header-actions button:hover { background: var(--accent); color: var(--bg); }
+
+  /* Chat area */
+  .chat-area {
+    flex: 1; overflow-y: auto; padding: 20px; display: flex;
+    flex-direction: column; gap: 10px;
+  }
+  .chat-area::-webkit-scrollbar { width: 6px; }
+  .chat-area::-webkit-scrollbar-track { background: var(--bg); }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Welcome */
+  .welcome {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--text2); text-align: center; gap: 8px;
+  }
+  .welcome h2 { font-size: 24px; color: var(--accent); }
+  .welcome p { font-size: 14px; max-width: 400px; line-height: 1.6; }
+
+  /* Messages */
+  .message { display: flex; flex-direction: column; max-width: 88%; animation: fadeIn 0.2s; }
+  .message.user { align-self: flex-end; }
+  .message.assistant { align-self: flex-start; position: relative; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg-header { font-size: 11px; font-weight: 600; margin-bottom: 3px; opacity: 0.7; }
+  .user .msg-header { color: var(--accent); text-align: right; }
+  .assistant .msg-header { color: var(--accent2); padding-left: 4px; }
+
+  .msg-body {
+    padding: 10px 16px; border-radius: 12px; font-size: 14px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .user .msg-body { background: var(--user-bg); border-bottom-right-radius: 4px; }
+  .assistant .msg-body { background: var(--assistant-bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+
+  /* Steps group */
+  .steps-group {
+    align-self: flex-start; max-width: 88%; width: 100%;
+    padding-left: 18px; border-left: 2px solid #252540;
+    margin-top: -2px; margin-bottom: 2px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+
+  /* Collapsible tool step card */
+  .tool-step {
+    background: var(--step-bg);
+    border: 1px solid var(--step-border);
+    border-radius: 8px; overflow: hidden;
+    transition: border-color 0.15s;
+    position: relative;
+  }
+  .tool-step:hover { border-color: #3a3a60; }
+
+  .tool-step .step-summary {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer; user-select: none;
+    font-size: 13px; line-height: 1.5;
+    min-height: 40px;
+  }
+  .tool-step .step-summary:hover { background: rgba(255,255,255,0.03); }
+
+  .step-summary .step-arrow {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; flex-shrink: 0;
+    font-size: 11px; color: #888;
+    transition: transform 0.2s;
+  }
+  .tool-step.expanded .step-arrow { transform: rotate(90deg); }
+
+  .step-summary .step-icon {
+    width: 22px; height: 22px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 5px; font-size: 12px;
+  }
+  .step-icon.icon-pending { background: #1a3a2a; color: #66bb6a; }
+  .step-icon.icon-ok { background: #1a3a2a; color: #66bb6a; }
+  .step-icon.icon-err { background: #3a1a1a; color: #ef5350; }
+
+  .step-summary .step-info { flex: 1; min-width: 0; }
+  .step-summary .step-name {
+    color: #66bb6a; font-weight: 600; font-size: 12px; letter-spacing: 0.3px;
+  }
+  .step-summary .step-desc {
+    color: var(--text2); font-size: 12px; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .step-summary .step-status {
+    font-size: 11px; flex-shrink: 0; margin-left: auto;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .step-status.status-ok { color: #66bb6a; }
+  .step-status.status-err { color: #ef5350; background: #3a1a1a; }
+
+  .tool-step .step-detail { display: none; }
+  .tool-step.expanded .step-detail { display: block; }
+
+  .step-detail .detail-inner {
+    padding: 0 14px 12px 14px; margin: 0;
+  }
+  .step-detail .detail-header {
+    font-size: 10px; color: #555; text-transform: uppercase;
+    letter-spacing: 0.8px; padding: 6px 0 4px 0;
+    border-top: 1px solid #1d1d30;
+  }
+  .step-detail pre {
+    margin: 4px 0 0 0; padding: 10px 12px;
+    background: #0c0c18; border-radius: 6px;
+    font-size: 11.5px; font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+    color: #c8c8d8; white-space: pre-wrap; word-break: break-all;
+    max-height: 320px; overflow-y: auto; line-height: 1.5;
+  }
+  .step-detail pre::-webkit-scrollbar { width: 4px; height: 4px; }
+  .step-detail pre::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  /* Error message */
+  .error-msg {
+    align-self: flex-start; padding: 10px 16px;
+    background: #2d1515; border: 1px solid #4a2222; border-radius: 8px;
+    color: var(--error); font-size: 13px; max-width: 88%;
+    line-height: 1.5;
+  }
+
+  /* Input area */
+  .input-area {
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 12px 20px; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0;
+  }
+  .input-area textarea {
+    flex: 1; background: var(--input-bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 14px;
+    font-family: inherit; resize: none; outline: none; min-height: 44px;
+    max-height: 120px; line-height: 1.5;
+  }
+  .input-area textarea:focus { border-color: var(--accent); }
+  .input-area button {
+    background: var(--accent); border: none; color: var(--bg); padding: 10px 20px;
+    border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600;
+    white-space: nowrap; transition: background 0.2s;
+  }
+  .input-area button:hover { background: #81d4fa; }
+  .input-area button:disabled { background: var(--border); color: var(--text2); cursor: not-allowed; }
+  .input-area button.stop { background: var(--error); }
+  .input-area button.stop:hover { background: #ef6c68; }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 60px; right: 20px; padding: 8px 16px;
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 8px;
+    color: var(--accent); font-size: 12px; z-index: 99;
+    animation: toastIn 0.3s, toastOut 0.3s 2s forwards;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>claw-mvp</h1>
+  <div class="header-group">
+    <label for="model-select">模型:</label>
+    <select id="model-select" onchange="switchModel(this.value)"><option value="">加载中...</option></select>
+  </div>
+  <div class="header-group">
+    <label for="session-select">会话:</label>
+    <select id="session-select" onchange="switchSession(this.value)"><option value="__current__">当前会话</option></select>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-actions">
+    <button onclick="newSession()">+ 新建</button>
+    <button onclick="saveCurrentSession()">💾 保存</button>
+    <button onclick="clearChat()">清空</button>
+  </div>
+</div>
+
+<div class="chat-area" id="chat-area">
+  <div class="welcome" id="welcome">
+    <h2>claw-mvp</h2>
+    <p>CLI AI Agent Web 聊天界面<br>输入消息开始对话，AI 可使用工具完成任务</p>
+  </div>
+</div>
+
+<div class="input-area">
+  <textarea id="input" placeholder="输入消息..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+  <button id="send-btn">发送</button>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ── 状态 ──
+let sessionId = new URLSearchParams(location.search).get('session') || null;
+let currentModel = '';
+let availableModels = [];
+let currentAssistantDiv = null;
+let currentMsgBody = null;
+let currentStepsGroup = null;
+let isGenerating = false;
+let hasToolCalls = false;
+let toolStepsQueue = [];
+
+// ── DOM ──
+const chatArea = document.getElementById('chat-area');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send-btn');
+const modelSelect = document.getElementById('model-select');
+const sessionSelect = document.getElementById('session-select');
+
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function showToast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ── 初始化 ──
+(async function init() {
+  try {
+    const r = await fetch('/api/models'); const d = await r.json();
+    availableModels = d.models || [];
+    modelSelect.innerHTML = availableModels.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('');
+  } catch(e) { modelSelect.innerHTML = '<option value="deepseek/deepseek-v4-flash">DeepSeek V4 Flash</option>'; }
+  try {
+    const r = await fetch('/api/config'); const d = await r.json();
+    currentModel = d.model;
+    if (modelSelect.querySelector(`option[value="${currentModel}"]`)) modelSelect.value = currentModel;
+  } catch(e) {}
+  if (!sessionId) {
+    try {
+      const r = await fetch('/api/sessions', { method: 'POST' }); const d = await r.json();
+      sessionId = d.sessionId;
+      history.replaceState(null, '', '?session=' + encodeURIComponent(sessionId));
+    } catch(e) { sessionId = 'default'; }
+  }
+  await refreshSessionList();
+})();
+
+// ── 会话管理 ──
+async function refreshSessionList() {
+  try {
+    const r = await fetch('/api/sessions'); const d = await r.json();
+    const opts = d.sessions.map(s => {
+      const label = s.name ? `${s.name} (${s.messageCount}条)` : `${s.id.slice(0,12)}... (${s.messageCount}条)`;
+      return `<option value="${escapeHtml(s.id)}">${escapeHtml(label)}${s.persisted?' 📁':(s.id===sessionId?' ●':'')}</option>`;
+    });
+    sessionSelect.innerHTML = '<option value="__current__">✓ 当前会话</option>' + opts.join('');
+    if (sessionId) sessionSelect.value = sessionId;
+  } catch(e) {}
+}
+
+async function switchSession(sid) {
+  if (sid === '__current__') return;
+  const opt = sessionSelect.querySelector(`option[value="${sid}"]`);
+  if (opt && opt.textContent.includes('📁')) {
+    try {
+      const r = await fetch('/api/sessions/load', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name:sid}) });
+      const d = await r.json();
+      if (d.sessionId) {
+        sessionId = d.sessionId;
+        history.replaceState(null,'','?session='+encodeURIComponent(sessionId));
+        chatArea.innerHTML = '<div class="welcome" id="welcome"><h2>claw-mvp</h2><p>会话已加载<br>共 '+d.messageCount+' 条历史消息</p></div>';
+        showToast('已加载: '+(d.name||sid));
+        await refreshSessionList();
+        if (d.model && modelSelect.querySelector(`option[value="${d.model}"]`)) { modelSelect.value = d.model; currentModel = d.model; }
+      }
+    } catch(e) { showToast('加载失败: '+e.message); sessionSelect.value = sessionId || '__current__'; }
+  } else {
+    sessionId = sid;
+    history.replaceState(null,'','?session='+encodeURIComponent(sessionId));
+    chatArea.innerHTML = '<div class="welcome"><h2>claw-mvp</h2><p>已切换到会话<br>输入消息开始对话</p></div>';
+    showToast('已切换会话');
+  }
+}
+
+async function newSession() {
+  try {
+    const r = await fetch('/api/sessions',{method:'POST'}); const d = await r.json();
+    sessionId = d.sessionId;
+    history.replaceState(null,'','?session='+encodeURIComponent(sessionId));
+    chatArea.innerHTML = '<div class="welcome"><h2>claw-mvp</h2><p>新会话已创建</p></div>';
+    await refreshSessionList();
+    if (sessionSelect.querySelector(`option[value="${sessionId}"]`)) sessionSelect.value = sessionId;
+    showToast('新会话已创建');
+  } catch(e) { showToast('创建失败'); }
+}
+
+async function saveCurrentSession() {
+  if (!sessionId) return;
+  try {
+    const name = prompt('会话名称（留空自动生成）:');
+    await fetch('/api/sessions/'+encodeURIComponent(sessionId)+'/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name: name||undefined, model: currentModel})
+    });
+    showToast('会话已保存'); await refreshSessionList();
+  } catch(e) { showToast('保存失败'); }
+}
+
+async function switchModel(modelId) {
+  if (!modelId || modelId === currentModel) return;
+  try {
+    await fetch('/api/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:modelId,sessionId})});
+    currentModel = modelId;
+    showToast('模型已切换: '+(modelSelect.selectedOptions[0]?.text||modelId));
+  } catch(e) { showToast('切换失败'); }
+}
+
+// ── 发送消息 ──
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text || isGenerating) return;
+  input.value = ''; input.style.height = 'auto';
+  hideWelcome();
+  addMessage('user', text);
+  isGenerating = true;
+  hasToolCalls = false;
+  sendBtn.textContent = '停止'; sendBtn.className = 'stop';
+  toolStepsQueue = [];
+
+  currentAssistantDiv = addMessage('assistant', '');
+  currentMsgBody = currentAssistantDiv.querySelector('.msg-body');
+  currentStepsGroup = document.createElement('div');
+  currentStepsGroup.className = 'steps-group';
+  chatArea.appendChild(currentStepsGroup);
+
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: text, sessionId, model: currentModel || undefined })
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop() || '';
+      let ev = '';
+      for (const l of lines) {
+        if (l.startsWith('event: ')) { ev = l.slice(7).trim(); }
+        else if (l.startsWith('data: ')) {
+          try { handleSSE(ev, JSON.parse(l.slice(6))); ev = ''; } catch(e) {}
+        }
+      }
+    }
+  } catch(e) {
+    if (currentMsgBody && !currentMsgBody.textContent) {
+      currentMsgBody.textContent = '连接错误: ' + e.message;
+      currentMsgBody.style.color = 'var(--error)';
+    }
+  } finally { finishGeneration(); }
+}
+
+// ── SSE 事件 ──
+function handleSSE(type, data) {
+  switch(type) {
+    case 'session':
+      if (data.model && data.model !== currentModel) {
+        currentModel = data.model;
+        if (modelSelect.querySelector(`option[value="${currentModel}"]`)) modelSelect.value = currentModel;
+      }
+      break;
+    case 'text':
+      if (hasToolCalls && currentMsgBody) {
+        if (currentMsgBody.textContent.trim().length > 0) {
+          currentAssistantDiv = addMessage('assistant', '');
+          currentMsgBody = currentAssistantDiv.querySelector('.msg-body');
+          if (currentStepsGroup && currentStepsGroup.nextSibling !== currentAssistantDiv) {
+            currentStepsGroup.after(currentAssistantDiv);
+          }
+          hasToolCalls = false;  // BUG-MVP-018: 立即复位
+        }
+      }
+      if (currentMsgBody) {
+        currentMsgBody.textContent += data.content;
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+      break;
+    case 'tool_call':
+      hasToolCalls = true;
+      addToolStep(data.name, data.args);
+      break;
+    case 'tool_result':
+      updateToolStep(data.name, data.result);
+      break;
+    case 'error':
+      addError(data.message);
+      break;
+  }
+}
+
+// ── 工具步骤 ──
+function toggleStep(summaryEl) {
+  const step = summaryEl.parentElement;
+  step.classList.toggle('expanded');
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function getStepDesc(name, args) {
+  const a = args || {};
+  const path = a.path || a.filePath || a.file || a.target || '';
+  const cmd = a.command || '';
+  const query = a.query || '';
+  const url = a.url || '';
+  switch (name) {
+    case 'read': return '读取 ' + (path || '文件');
+    case 'write': return '写入 ' + (path || '文件');
+    case 'edit': return '编辑 ' + (path || '');
+    case 'exec': return cmd.slice(0, 55) || '执行命令';
+    case 'web_search': return '搜索 «' + (query||'').slice(0, 30) + '»';
+    case 'web_fetch': return '抓取 ' + (url||'').slice(0, 35);
+    case 'python': return 'Python 脚本';
+    default: return (path || cmd || url || '').slice(0, 45);
+  }
+}
+
+function getResultSummary(resultStr) {
+  try {
+    const r = typeof resultStr === 'string' ? JSON.parse(resultStr) : resultStr;
+    if (r && r.success === false) return { text: '失败: ' + (r.error||'未知错误').slice(0, 60), isErr: true };
+    if (r && typeof r.content === 'string') return { text: r.content.length + ' 字符', isErr: false };
+    if (r && r.lines !== undefined) return { text: r.lines + ' 行', isErr: false };
+    if (r && typeof r.output === 'string') return { text: r.output.length + ' 字符', isErr: false };
+  } catch {}
+  return { text: resultStr.length > 80 ? resultStr.length + ' 字符' : resultStr.slice(0, 50), isErr: false };
+}
+
+function addToolStep(name, args) {
+  hideWelcome();
+  const stepId = 'ts-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+  const desc = getStepDesc(name, args);
+
+  const div = document.createElement('div');
+  div.className = 'tool-step';
+  div.id = stepId;
+  div.innerHTML = `
+    <div class="step-summary" onclick="toggleStep(this)">
+      <span class="step-arrow">▸</span>
+      <span class="step-icon icon-pending">◎</span>
+      <span class="step-info">
+        <span class="step-name">${escapeHtml(name)}</span>
+        <span class="step-desc">${escapeHtml(desc)}</span>
+      </span>
+      <span class="step-status status-ok">执行中...</span>
+    </div>
+    <div class="step-detail">
+      <div class="detail-inner">
+        <div class="detail-header">参数</div>
+        <pre>${escapeHtml(JSON.stringify(args, null, 2))}</pre>
+        <div class="detail-header" id="${stepId}-res-hdr" style="display:none">结果</div>
+        <pre id="${stepId}-res" style="display:none"></pre>
+      </div>
+    </div>
+  `;
+
+  if (currentStepsGroup) {
+    currentStepsGroup.appendChild(div);
+  } else {
+    chatArea.appendChild(div);
+  }
+
+  toolStepsQueue.push({ stepId, name, div });
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function updateToolStep(name, result) {
+  hideWelcome();
+  const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  const summary = getResultSummary(resultStr);
+
+  let idx = toolStepsQueue.findIndex(s => s.name === name);
+  if (idx < 0) idx = 0;
+  const stepData = toolStepsQueue.splice(idx, 1)[0];
+  if (!stepData) return;
+
+  const { stepId, div } = stepData;
+  const iconEl = div.querySelector('.step-icon');
+  const statusEl = div.querySelector('.step-status');
+  const descEl = div.querySelector('.step-desc');
+
+  if (summary.isErr) {
+    if (iconEl) { iconEl.className = 'step-icon icon-err'; iconEl.textContent = '✕'; }
+    if (statusEl) { statusEl.className = 'step-status status-err'; statusEl.textContent = '失败'; }
+    div.classList.add('expanded');
+  } else {
+    if (iconEl) { iconEl.className = 'step-icon icon-ok'; iconEl.textContent = '✓'; }
+    if (statusEl) { statusEl.className = 'step-status status-ok'; statusEl.textContent = '完成'; }
+  }
+  if (descEl) descEl.textContent = getStepDesc(name, {}) + ' — ' + summary.text;
+
+  const resHdr = document.getElementById(stepId + '-res-hdr');
+  const resPre = document.getElementById(stepId + '-res');
+  if (resHdr) resHdr.style.display = 'block';
+  if (resPre) { resPre.style.display = 'block'; resPre.textContent = resultStr; }
+
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function addError(msg) {
+  const div = document.createElement('div');
+  div.className = 'error-msg'; div.textContent = '⚠ ' + msg;
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function hideWelcome() {
+  const w = document.getElementById('welcome');
+  if (w) w.style.display = 'none';
+}
+
+function addMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = 'message ' + role;
+  div.innerHTML = `<div class="msg-header">${role==='user'?'你':'claw-mvp'}</div><div class="msg-body">${escapeHtml(text)}</div>`;
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return div;
+}
+
+function finishGeneration() {
+  isGenerating = false;
+  sendBtn.textContent = '发送'; sendBtn.className = '';
+  currentAssistantDiv = null;
+  currentMsgBody = null;
+  currentStepsGroup = null;
+  toolStepsQueue = [];
+  input.focus();
+}
+
+function clearChat() {
+  chatArea.innerHTML = '<div class="welcome" id="welcome"><h2>claw-mvp</h2><p>CLI AI Agent Web 聊天界面<br>输入消息开始对话，AI 可使用工具完成任务</p></div>';
+}
+
+sendBtn.addEventListener('click', () => {
+  if (isGenerating) { if (confirm('中断当前生成？')) newSession(); }
+  else sendMessage();
+});
+</script>
+</body>
+</html>

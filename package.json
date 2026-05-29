@@ -1,0 +1,14 @@
+{
+  "name": "claw-mvp",
+  "version": "0.2.0",
+  "description": "CLI AI Agent",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "web": "node --experimental-strip-types src/server.ts",
+    "check": "node --experimental-strip-types --check src/index.ts"
+  },
+  "dependencies": {
+    "openai": "^4.0.0"
+  }
+}
