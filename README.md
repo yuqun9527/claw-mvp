@@ -1,8 +1,6 @@
-# claw-mvp
+# claw-mvp — 最小的能安全办公的office claw
 
 CLI + Web 双模式 AI Agent，TypeScript (ESM)，零编译。
-
-> 最小的能安全办公的 claw。
 
 ## 核心主打
 
