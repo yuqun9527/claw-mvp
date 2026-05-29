@@ -2,6 +2,14 @@
 
 CLI + Web 双模式 AI Agent，TypeScript (ESM)，零编译。
 
+## 核心主打
+
+**轻量** — 零编译、单依赖（仅 `openai`），16 个源文件，Node.js 直跑。没有 webpack / vite / tsc，clone 下来 `npm install && npm start` 就能用。
+
+**安全** — 工作区沙箱隔离 + exec 危险命令黑名单 + 文件操作沙箱检测 + SSRF 内网 IP 拦截 + 反 LLM 幻觉规则。数据不足时诚实报告，不编造内容。
+
+**办公** — 内置 `.xlsx`、`.docx`、`.pptx`、`.pdf` 自动解析与生成，Python 脚本执行 + 自动 pip install。三引擎并行搜索（Bing + Google + 百度），PDF 一键下载。真正能干活的工作 Agent。
+
 ## 快速开始
 
 ```bash
@@ -41,8 +49,9 @@ REST API：
 | `write` | 文件写入（文本 + Office 自动转换） |
 | `edit` | 精确文本替换 |
 | `exec` | Shell 命令执行（安全沙箱） |
-| `web_search` | 多引擎搜索（DuckDuckGo + Bing） |
+| `web_search` | 三引擎并行搜索（Bing + Google + 百度），结果合并去重 |
 | `web_fetch` | 网页内容抓取（SSRF 防护） |
+| `download` | 文件下载到工作区（PDF、图片等任意类型） |
 | `python` | Python 脚本执行（auto-pip + 安全检查） |
 
 ## 配置
@@ -60,7 +69,9 @@ REST API：
   },
   "workspace": "./workspace",
   "maxHistoryTurns": 50,
-  "maxIterations": 30
+  "maxIterations": 30,
+  "maxSearchRounds": 4,
+  "proxy": "http://127.0.0.1:7890"
 }
 ```
 
@@ -90,6 +101,7 @@ claw-mvp/
 │       ├── exec.ts
 │       ├── web_search.ts
 │       ├── web_fetch.ts
+│       ├── download.ts
 │       └── python.ts
 └── workspace/
 ```
