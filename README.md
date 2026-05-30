@@ -10,6 +10,43 @@ CLI + Web 双模式 AI Agent，TypeScript (ESM)，零编译。
 
 **办公** — 内置 `.xlsx`、`.docx`、`.pptx`、`.pdf` 自动解析与生成，Python 脚本执行 + 自动 pip install。三引擎并行搜索（Bing + Google + 百度），PDF 一键下载。真正能干活的工作 Agent。
 
+## 与 OpenClaw 对比（个人办公场景）
+
+OpenClaw 是生产级多通道 AI 助手平台，但默认信任主 Session 的设计在 LLM 偶尔犯浑时存在风险敞口。claw-mvp 面向个人办公场景，在以下维度更贴合实际：
+
+### 🛡️ 安全更细粒度
+
+- **Exec 黑名单 30+ 条平台感知规则** — `format`、`del /f`、`shutdown`、`reg delete`、`schtasks`、`netsh`、`iex`、`iwr`、`EncodedCommand` 等危险命令直接拒绝，不需要用户手动审批
+- **文件操作沙箱防泄密** — `Copy-Item` / `move` / `xcopy` / 重定向 `>` 的目标路径实时检测，LLM 无法通过 exec 把文件搬到工作区外
+- **SSRF 内网全覆盖拦截** — 全部 RFC 1918 保留地址段 + 链路本地 + 十六进制/十进制 IP 编码攻击 + `file://` 协议拒绝
+- **反幻觉硬约束** — system prompt 明确禁止编造数据 + ≤30 字符空话自动重试（最多 3 次）+ 搜索 4 轮封顶强制综合汇总
+- **Python 危险模块黑名单** — `os.system` / `subprocess` / `socket` / `eval` / `requests` 等禁止导入
+
+### 💼 办公文件原生支持
+
+- **Office 格式是核心能力** — `.xlsx` / `.docx` / `.pptx` 开箱即用，不是插件也不是技能
+- **Markdown → Office 自动转换** — 一条 `write` 命令把 `# 标题` / `- 列表` 转为 Word 或 PPT
+- **PDF 双引擎读取** — `pdfplumber`（优先）+ `PyPDF2`（回退），自动安装
+- **三引擎搜索去重** — Bing + Google + 百度并行，结果合并去重
+- **Python 开箱即用** — 自动 pip 安装依赖，数据分析一条龙
+- **文件下载工具** — `download` 直接拉 URL 到工作区
+
+### ⚡ 极致轻量
+
+- **1 个 npm 依赖** — 只装 `openai` SDK，无 pnpm workspace、无 Docker、无额外运行时
+- **3,464 行代码** — 一个下午读完，完全透明
+- **零配置文件** — 环境变量搞定一切，无 `openclaw.json`、无 `exec-approvals.json`
+- **零编译** — `--experimental-strip-types` 直跑 `.ts`，无 webpack/vite/tsc
+- **单进程** — 无 Gateway 守护进程、无 Control UI、无 Sidecar
+
+### 🧠 设计哲学
+
+- **"把 LLM 当实习生管"** — 防御性设计，默认不信任模型输出，5 层纵深防御层层兜底
+- **平台感知** — Windows 和 Linux 各有一套黑名单，Windows 版额外 20+ 条规则
+- **编码自适应** — UTF-8 → GBK 自动回退解码，Windows 中文环境不乱码
+
+> **一句话**：claw-mvp 在个人办公场景下的优势 = 管得细（30+ 条黑名单）+ 原生支持 Office + 零负担部署 + 代码完全透明。它和 OpenClaw 不是竞争关系，而是刚好补上了 OpenClaw 主 Session 默认放太宽的缺口。
+
 ## 快速开始
 
 ```bash
