@@ -4,7 +4,7 @@ CLI + Web 双模式 AI Agent，TypeScript (ESM)，零编译。
 
 ## 核心主打
 
-**轻量** — 零编译、单依赖（仅 `openai`），16 个源文件，Node.js 直跑。没有 webpack / vite / tsc，clone 下来 `npm install && npm start` 就能用。
+**轻量** — 零编译、单依赖（仅 `openai`），16 个源文件，3000行代码，Node.js 直跑。没有 webpack / vite / tsc，clone 下来 `npm install && npm start` 就能用。
 
 **安全** — 工作区沙箱隔离 + exec 危险命令黑名单 + 文件操作沙箱检测 + SSRF 内网 IP 拦截 + 反 LLM 幻觉规则。数据不足时诚实报告，不编造内容。
 
